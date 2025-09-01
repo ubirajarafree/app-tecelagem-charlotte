@@ -12,7 +12,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
-import { X, Plus, Loader2, Save } from 'lucide-react'
+import { X, Plus, Loader2, Save, Upload } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 
 const estampaSchema = z.object({
@@ -33,6 +33,8 @@ export function FormularioEstampa({ estampa, usuario, onSalvar, onCancelar }: Fo
   const [novaTag, setNovaTag] = useState('')
   const [cores, setCores] = useState(estampa?.paleta_cores || {})
   const [novaCor, setNovaCor] = useState({ nome: '', valor: '#000000' })
+  const [arquivoImagem, setArquivoImagem] = useState<File | null>(null)
+  const [previewUrl, setPreviewUrl] = useState<string | null>(estampa?.imagem_url || null)
   const [loading, setLoading] = useState(false)
   const { toast } = useToast()
 
@@ -69,22 +71,57 @@ export function FormularioEstampa({ estampa, usuario, onSalvar, onCancelar }: Fo
     setCores(novasCores)
   }
 
+  const handleSelecaoImagem = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (event.target.files && event.target.files[0]) {
+      const file = event.target.files[0]
+      setArquivoImagem(file)
+      setPreviewUrl(URL.createObjectURL(file))
+    }
+  }
+
   const onSubmit = async (values: z.infer<typeof estampaSchema>) => {
     setLoading(true)
+    let imageUrl = estampa?.imagem_url || ''
 
     try {
+      // 1. Faz o upload da nova imagem, se uma foi selecionada
+      if (arquivoImagem) {
+        const nomeArquivo = `${usuario.id}-${Date.now()}`
+        const { error: uploadError } = await supabase.storage
+          .from('tecelagem2') // <-- Nome do seu bucket
+          .upload(nomeArquivo, arquivoImagem)
+
+        if (uploadError) throw uploadError
+
+        const { data: urlData } = supabase.storage
+          .from('tecelagem2')
+          .getPublicUrl(nomeArquivo)
+        
+        imageUrl = urlData.publicUrl
+      } else if (!estampa) {
+        // 2. Garante que uma imagem seja enviada ao criar uma nova estampa
+        toast({
+          title: 'Imagem obrigatória',
+          description: 'Por favor, selecione uma imagem para a nova estampa.',
+          variant: 'destructive',
+        })
+        setLoading(false)
+        return
+      }
+
+      // 3. Prepara os dados para salvar no banco
       const dadosEstampa = {
         ...values,
         tags,
         paleta_cores: cores,
-        imagem_url: estampa?.imagem_url || 'https://images.pexels.com/photos/1029604/pexels-photo-1029604.jpeg',
-        criado_por: usuario.id,
+        imagem_url: imageUrl,
+        criado_por: estampa ? undefined : usuario.id, // Define 'criado_por' apenas na criação
       }
 
       if (estampa) {
         const { data, error } = await supabase
           .from('estampas')
-          .update(dadosEstampa)
+          .update({ ...dadosEstampa, criado_por: undefined }) // Não atualiza 'criado_por'
           .eq('id', estampa.id)
           .select()
           .single()
@@ -98,7 +135,7 @@ export function FormularioEstampa({ estampa, usuario, onSalvar, onCancelar }: Fo
       } else {
         const { data, error } = await supabase
           .from('estampas')
-          .insert([dadosEstampa])
+          .insert([dadosEstampa] as any)
           .select()
           .single()
 
@@ -123,6 +160,34 @@ export function FormularioEstampa({ estampa, usuario, onSalvar, onCancelar }: Fo
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        {/* Campo de Upload de Imagem */}
+        <FormItem>
+          <FormLabel>Imagem da Estampa</FormLabel>
+          <FormControl>
+            <div className="flex items-center gap-4">
+              {previewUrl && (
+                <img src={previewUrl} alt="Preview" className="w-24 h-24 object-cover rounded-lg border" />
+              )}
+              <Label htmlFor="picture" className="flex-1 flex flex-col items-center justify-center w-full h-24 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100">
+                <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                  <Upload className="w-8 h-8 mb-2 text-gray-500" />
+                  <p className="mb-2 text-sm text-gray-500"><span className="font-semibold">Clique para enviar</span> ou arraste</p>
+                  <p className="text-xs text-gray-500">PNG, JPG ou WEBP</p>
+                </div>
+                <Input 
+                  id="picture" 
+                  type="file" 
+                  className="hidden" 
+                  accept="image/png, image/jpeg, image/webp"
+                  onChange={handleSelecaoImagem}
+                />
+              </Label>
+            </div>
+          </FormControl>
+          <FormMessage />
+        </FormItem>
+
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <FormField
             control={form.control}
