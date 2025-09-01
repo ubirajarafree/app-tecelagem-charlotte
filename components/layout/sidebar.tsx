@@ -2,7 +2,7 @@
 
 import { Usuario } from '@/lib/types'
 import { Button } from '@/components/ui/button'
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
+import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet'
 import { Badge } from '@/components/ui/badge'
 import { 
   Grid3X3, 
@@ -10,8 +10,7 @@ import {
   Package, 
   ShoppingCart, 
   User, 
-  Settings,
-  X 
+  Settings
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -41,14 +40,6 @@ export function Sidebar({ usuario, aberta, onClose, paginaAtual, onNavigate }: S
           </div>
           <span className="font-semibold text-gray-800">Menu</span>
         </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={onClose}
-          className="lg:hidden text-gray-500 hover:text-gray-700"
-        >
-          <X className="h-4 w-4" />
-        </Button>
       </div>
 
       <nav className="flex-1 p-4 space-y-2">
@@ -112,6 +103,8 @@ export function Sidebar({ usuario, aberta, onClose, paginaAtual, onNavigate }: S
       {/* Mobile Sidebar */}
       <Sheet open={aberta} onOpenChange={onClose}>
         <SheetContent side="left" className="w-64 p-0 bg-white/95 backdrop-blur-md">
+          {/* Adiciona um título apenas para leitores de tela para cumprir os requisitos de acessibilidade */}
+          <SheetTitle className="sr-only">Menu</SheetTitle>
           <SidebarContent />
         </SheetContent>
       </Sheet>
