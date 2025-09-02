@@ -1,29 +1,12 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { supabase } from '@/lib/supabase'
+import { AuthProvider, useAuth } from '@/contexts/auth-context'
 import { AuthForm } from '@/components/auth/auth-form'
 import { AppLayout } from '@/components/layout/app-layout'
 import { Loader2 } from 'lucide-react'
 
-export default function Home() {
-  const [session, setSession] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session)
-      setLoading(false)
-    })
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        setSession(session)
-      }
-    )
-
-    return () => subscription.unsubscribe()
-  }, [])
+function AppContent() {
+  const { session, loading } = useAuth()
 
   if (loading) {
     return (
@@ -38,4 +21,12 @@ export default function Home() {
   }
 
   return <AppLayout />
+}
+
+export default function Home() {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
+  )
 }

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useAuth } from '@/contexts/auth-context'
 import { supabase } from '@/lib/supabase'
 import { Usuario, Estampa } from '@/lib/types'
 import { Button } from '@/components/ui/button'
@@ -12,25 +13,26 @@ import { cn } from '@/lib/utils'
 
 interface EstampaCardProps {
   estampa: Estampa
-  usuario: Usuario
   onClick: () => void
 }
 
-export function EstampaCard({ estampa, usuario, onClick }: EstampaCardProps) {
+export function EstampaCard({ estampa, onClick }: EstampaCardProps) {
+  const { usuario } = useAuth()
   const [favorita, setFavorita] = useState(false)
   const [loadingFavorito, setLoadingFavorito] = useState(false)
   const { toast } = useToast()
 
   useEffect(() => {
     verificarFavorito()
-  }, [estampa.id, usuario.id])
+  }, [estampa.id, usuario?.id])
 
   const verificarFavorito = async () => {
+    if (!usuario) return
     try {
       const { data } = await supabase
         .from('favoritos')
         .select('*')
-        .eq('usuario_id', usuario.id)
+        .eq('usuario_id', usuario?.id)
         .eq('estampa_id', estampa.id)
         .single()
 
@@ -43,6 +45,7 @@ export function EstampaCard({ estampa, usuario, onClick }: EstampaCardProps) {
   const toggleFavorito = async (e: React.MouseEvent) => {
     e.stopPropagation()
     setLoadingFavorito(true)
+    if (!usuario) return
 
     try {
       if (favorita) {

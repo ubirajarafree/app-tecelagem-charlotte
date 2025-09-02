@@ -1,16 +1,13 @@
 'use client'
 
 import { useState } from 'react'
-import { Usuario } from '@/lib/types'
+import { useAuth } from '@/contexts/auth-context'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ShoppingCart, Package, CreditCard } from 'lucide-react'
 
-interface CarrinhoPaginaProps {
-  usuario: Usuario
-}
-
-export function CarrinhoPagina({ usuario }: CarrinhoPaginaProps) {
+export function CarrinhoPagina() {
+  const { usuario } = useAuth()
   // Esta é uma implementação básica - o carrinho seria implementado com estado global ou Context
   const [itensCarrinho, setItensCarrinho] = useState<any[]>([])
 

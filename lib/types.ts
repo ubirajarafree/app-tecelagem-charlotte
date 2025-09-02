@@ -1,29 +1,29 @@
+/**
+ * Este arquivo define os tipos de dados customizados para a aplicação.
+ * Eles são baseados no schema do banco de dados, mas incluem propriedades
+ * opcionais para acomodar os dados retornados por queries com joins.
+ */
+
 export interface Usuario {
   id: string
   nome_completo: string
-  avatar_url?: string
+  avatar_url: string | null
   role: 'admin' | 'cliente'
+  created_at: string
+  updated_at: string
 }
 
 export interface Estampa {
   id: string
   nome: string
   codigo: string
-  imagem_url: string
+  imagem_url: string | null
   tags: string[]
   paleta_cores: { [key: string]: string }
   descricao: string
   created_at: string
-  criado_por: string
-}
-
-export interface Pedido {
-  id: string
-  usuario_id: string
-  data_pedido: string
-  status: 'processando' | 'concluido' | 'cancelado'
-  valor_total: number
-  itens: ItemPedido[]
+  updated_at: string
+  criado_por: string | null
 }
 
 export interface ItemPedido {
@@ -32,12 +32,22 @@ export interface ItemPedido {
   estampa_id: string
   quantidade: number
   preco_unitario: number
-  estampa?: Estampa
+  created_at: string
+  // Propriedade opcional do join
+  estampa?: Estampa | null
 }
 
-export interface Favorito {
+export interface Pedido {
+  id: string
   usuario_id: string
-  estampa_id: string
+  data_pedido: string
+  status: 'processando' | 'concluido' | 'cancelado'
+  valor_total: number
+  created_at: string
+  updated_at: string
+  // Propriedades opcionais dos joins
+  usuario?: Pick<Usuario, 'nome_completo'> | null
+  itens?: ItemPedido[] | null
 }
 
 export interface Comentario {
@@ -46,11 +56,6 @@ export interface Comentario {
   usuario_id: string
   texto: string
   created_at: string
-  usuario?: Usuario
-}
-
-export interface CarrinhoItem {
-  estampa: Estampa
-  quantidade: number
-  preco_unitario: number
+  // Propriedade opcional do join
+  usuario?: Pick<Usuario, 'nome_completo' | 'avatar_url'> | null
 }

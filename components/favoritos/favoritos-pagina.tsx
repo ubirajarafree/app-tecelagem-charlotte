@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useAuth } from '@/contexts/auth-context'
 import { supabase } from '@/lib/supabase'
 import { Usuario, Estampa } from '@/lib/types'
 import { EstampaCard } from '@/components/catalogo/estampa-card'
@@ -8,11 +9,8 @@ import { EstampaDetalhe } from '@/components/catalogo/estampa-detalhe'
 import { Loader2, Heart } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 
-interface FavoritosPaginaProps {
-  usuario: Usuario
-}
-
-export function FavoritosPagina({ usuario }: FavoritosPaginaProps) {
+export function FavoritosPagina() {
+  const { usuario } = useAuth()
   const [estampasFavoritas, setEstampasFavoritas] = useState<Estampa[]>([])
   const [estampaSelecionada, setEstampaSelecionada] = useState<Estampa | null>(null)
   const [loading, setLoading] = useState(true)
@@ -20,21 +18,21 @@ export function FavoritosPagina({ usuario }: FavoritosPaginaProps) {
 
   useEffect(() => {
     carregarFavoritos()
-  }, [usuario.id])
+  }, [usuario?.id])
 
   const carregarFavoritos = async () => {
     try {
+      // Esta query é mais eficiente. Ela busca diretamente as 'estampas'
+      // que possuem um registro correspondente na tabela 'favoritos' para o usuário atual.
+      // O `!inner(*)` garante que apenas estampas favoritadas sejam retornadas.
       const { data, error } = await supabase
-        .from('favoritos')
-        .select(`
-          estampa:estampas(*)
-        `)
-        .eq('usuario_id', usuario.id)
+        .from('estampas')
+        .select('*, favoritos!inner(*)')
+        .eq('favoritos.usuario_id', usuario?.id)
 
       if (error) throw error
 
-      const estampas = data?.map(item => item.estampa).filter(Boolean) as Estampa[] || []
-      setEstampasFavoritas(estampas)
+      setEstampasFavoritas(data || [])
     } catch (error: any) {
       toast({
         title: 'Erro ao carregar favoritos',
@@ -45,6 +43,8 @@ export function FavoritosPagina({ usuario }: FavoritosPaginaProps) {
       setLoading(false)
     }
   }
+
+  if (!usuario) return null
 
   if (loading) {
     return (
@@ -58,7 +58,6 @@ export function FavoritosPagina({ usuario }: FavoritosPaginaProps) {
     return (
       <EstampaDetalhe
         estampa={estampaSelecionada}
-        usuario={usuario}
         onVoltar={() => setEstampaSelecionada(null)}
       />
     )
@@ -92,7 +91,6 @@ export function FavoritosPagina({ usuario }: FavoritosPaginaProps) {
             <EstampaCard
               key={estampa.id}
               estampa={estampa}
-              usuario={usuario}
               onClick={() => setEstampaSelecionada(estampa)}
             />
           ))}

@@ -1,8 +1,9 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useAuth } from '@/contexts/auth-context'
 import { supabase } from '@/lib/supabase'
-import { Usuario, Estampa } from '@/lib/types'
+import { Estampa } from '@/lib/types'
 import { EstampaCard } from './estampa-card'
 import { EstampaDetalhe } from './estampa-detalhe'
 import { FiltrosCatalogo } from './filtros-catalogo'
@@ -11,19 +12,15 @@ import { Input } from '@/components/ui/input'
 import { Loader2, Search, Filter } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 
-interface CatalogoPaginaProps {
-  usuario: Usuario
-}
-
 interface FiltrosState {
   busca: string
   tags: string[]
   cores: string[]
 }
 
-export function CatalogoPagina({ usuario }: CatalogoPaginaProps) {
+export function CatalogoPagina() {
+  const { usuario } = useAuth()
   const [estampas, setEstampas] = useState<Estampa[]>([])
-  const [estampasFiltradas, setEstampasFiltradas] = useState<Estampa[]>([])
   const [estampaSelecionada, setEstampaSelecionada] = useState<Estampa | null>(null)
   const [loading, setLoading] = useState(true)
   const [mostrarFiltros, setMostrarFiltros] = useState(false)
@@ -35,22 +32,42 @@ export function CatalogoPagina({ usuario }: CatalogoPaginaProps) {
   const { toast } = useToast()
 
   useEffect(() => {
-    carregarEstampas()
-  }, [])
-
-  useEffect(() => {
-    aplicarFiltros()
-  }, [estampas, filtros])
+    // A lógica condicional vai para DENTRO do hook
+    if (usuario) {
+      carregarEstampas()
+    }
+  }, [filtros, usuario]) // Adiciona `usuario` como dependência
 
   const carregarEstampas = async () => {
+    setLoading(true)
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('estampas')
         .select('*')
         .order('created_at', { ascending: false })
 
+      if (filtros.busca) {
+        const busca = filtros.busca.toLowerCase()
+        // Filtra no banco de dados pelo nome, código OU descrição
+        query = query.or(`nome.ilike.%${busca}%,codigo.ilike.%${busca}%,descricao.ilike.%${busca}%`)
+      }
+
+      if (filtros.tags.length > 0) {
+        // Filtra estampas que contenham QUALQUER uma das tags selecionadas
+        query = query.overlaps('tags', filtros.tags)
+      }
+
+      // A filtragem por cor é mais complexa e geralmente requer uma função no banco de dados (RPC).
+      // Manteremos a filtragem de cor no cliente por enquanto para simplicidade,
+      // mas a maior parte da carga (busca e tags) já foi movida para o servidor.
+
+      const { data, error } = await query
+
       if (error) throw error
-      setEstampas(data || [])
+
+      // Filtro de cor no cliente (se necessário)
+      const estampasFiltradasPorCor = aplicarFiltroDeCor(data || [])
+      setEstampas(estampasFiltradasPorCor)
     } catch (error: any) {
       toast({
         title: 'Erro ao carregar estampas',
@@ -62,33 +79,19 @@ export function CatalogoPagina({ usuario }: CatalogoPaginaProps) {
     }
   }
 
-  const aplicarFiltros = () => {
-    let resultado = [...estampas]
-
-    if (filtros.busca) {
-      const busca = filtros.busca.toLowerCase()
-      resultado = resultado.filter(estampa => 
-        estampa.nome.toLowerCase().includes(busca) ||
-        estampa.codigo.toLowerCase().includes(busca) ||
-        estampa.descricao.toLowerCase().includes(busca)
-      )
-    }
-
-    if (filtros.tags.length > 0) {
-      resultado = resultado.filter(estampa =>
-        filtros.tags.some(tag => estampa.tags.includes(tag))
-      )
-    }
-
+  const aplicarFiltroDeCor = (data: Estampa[]) => {
+    let resultado = data
     if (filtros.cores.length > 0) {
       resultado = resultado.filter(estampa => {
         const cores = Object.values(estampa.paleta_cores)
         return filtros.cores.some(cor => cores.includes(cor))
       })
     }
-
-    setEstampasFiltradas(resultado)
+    return resultado
   }
+
+  // O retorno condicional é movido para DEPOIS de todos os hooks
+  if (!usuario) return null
 
   if (loading) {
     return (
@@ -102,7 +105,6 @@ export function CatalogoPagina({ usuario }: CatalogoPaginaProps) {
     return (
       <EstampaDetalhe
         estampa={estampaSelecionada}
-        usuario={usuario}
         onVoltar={() => setEstampaSelecionada(null)}
       />
     )
@@ -115,7 +117,7 @@ export function CatalogoPagina({ usuario }: CatalogoPaginaProps) {
           <div>
             <h1 className="text-2xl font-bold text-gray-800">Catálogo de Estampas</h1>
             <p className="text-gray-600 mt-1">
-              {estampasFiltradas.length} estampa{estampasFiltradas.length !== 1 ? 's' : ''} encontrada{estampasFiltradas.length !== 1 ? 's' : ''}
+              {estampas.length} estampa{estampas.length !== 1 ? 's' : ''} encontrada{estampas.length !== 1 ? 's' : ''}
             </p>
           </div>
           
@@ -151,7 +153,7 @@ export function CatalogoPagina({ usuario }: CatalogoPaginaProps) {
         )}
       </div>
 
-      {estampasFiltradas.length === 0 ? (
+      {estampas.length === 0 && !loading ? (
         <div className="text-center py-12">
           <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <Search className="h-8 w-8 text-gray-400" />
@@ -170,11 +172,10 @@ export function CatalogoPagina({ usuario }: CatalogoPaginaProps) {
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {estampasFiltradas.map((estampa) => (
+          {estampas.map((estampa) => (
             <EstampaCard
               key={estampa.id}
               estampa={estampa}
-              usuario={usuario}
               onClick={() => setEstampaSelecionada(estampa)}
             />
           ))}

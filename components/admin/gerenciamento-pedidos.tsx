@@ -1,52 +1,58 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useAuth } from '@/contexts/auth-context'
 import { supabase } from '@/lib/supabase'
-import { Usuario, Pedido } from '@/lib/types'
+import { Pedido } from '@/lib/types'
+import { formatarMoeda } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Loader2, Search, Package, Calendar } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
+import { StatusBadge } from '../pedidos/status-badge'
 
-interface GerenciamentoPedidosProps {
-  usuario: Usuario
-}
-
-export function GerenciamentoPedidos({ usuario }: GerenciamentoPedidosProps) {
+export function GerenciamentoPedidos() {
   const [pedidos, setPedidos] = useState<Pedido[]>([])
-  const [pedidosFiltrados, setPedidosFiltrados] = useState<Pedido[]>([])
   const [busca, setBusca] = useState('')
   const [statusFiltro, setStatusFiltro] = useState<string>('todos')
   const [loading, setLoading] = useState(true)
+  const { usuario } = useAuth()
   const { toast } = useToast()
 
   useEffect(() => {
     carregarPedidos()
-  }, [])
-
-  useEffect(() => {
-    aplicarFiltros()
-  }, [pedidos, busca, statusFiltro])
+  }, [busca, statusFiltro]) // Recarrega os dados quando os filtros mudam
 
   const carregarPedidos = async () => {
+    setLoading(true)
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('pedidos')
         .select(`
           *,
           usuario:usuarios_ext(nome_completo),
           itens:itens_pedido(
             *,
-            estampa:estampas(nome, codigo)
+            estampa:estampas(*)
           )
         `)
         .order('data_pedido', { ascending: false })
+
+      if (statusFiltro !== 'todos') {
+        query = query.eq('status', statusFiltro)
+      }
+
+      if (busca) {
+        // Filtra no banco de dados pelo ID do pedido OU pelo nome do cliente
+        query = query.or(`id.ilike.%${busca}%,usuario.nome_completo.ilike.%${busca}%`)
+      }
+
+      const { data, error } = await query
 
       if (error) throw error
       setPedidos(data || [])
@@ -61,23 +67,6 @@ export function GerenciamentoPedidos({ usuario }: GerenciamentoPedidosProps) {
     }
   }
 
-  const aplicarFiltros = () => {
-    let resultado = [...pedidos]
-
-    if (busca) {
-      resultado = resultado.filter(pedido =>
-        pedido.id.toLowerCase().includes(busca.toLowerCase()) ||
-        pedido.usuario?.nome_completo?.toLowerCase().includes(busca.toLowerCase())
-      )
-    }
-
-    if (statusFiltro !== 'todos') {
-      resultado = resultado.filter(pedido => pedido.status === statusFiltro)
-    }
-
-    setPedidosFiltrados(resultado)
-  }
-
   const atualizarStatus = async (pedidoId: string, novoStatus: string) => {
     try {
       const { error } = await supabase
@@ -88,7 +77,7 @@ export function GerenciamentoPedidos({ usuario }: GerenciamentoPedidosProps) {
       if (error) throw error
 
       setPedidos(prev => prev.map(p => 
-        p.id === pedidoId ? { ...p, status: novoStatus as any } : p
+        p.id === pedidoId ? { ...p, status: novoStatus as Pedido['status'] } : p
       ))
 
       toast({
@@ -102,26 +91,6 @@ export function GerenciamentoPedidos({ usuario }: GerenciamentoPedidosProps) {
         variant: 'destructive',
       })
     }
-  }
-
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'processando':
-        return <Badge className="bg-yellow-100 text-yellow-800 hover:bg-yellow-100">Processando</Badge>
-      case 'concluido':
-        return <Badge className="bg-green-100 text-green-800 hover:bg-green-100">Concluído</Badge>
-      case 'cancelado':
-        return <Badge className="bg-red-100 text-red-800 hover:bg-red-100">Cancelado</Badge>
-      default:
-        return <Badge variant="secondary">{status}</Badge>
-    }
-  }
-
-  const formatarMoeda = (valor: number) => {
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL'
-    }).format(valor)
   }
 
   if (loading) {
@@ -179,7 +148,7 @@ export function GerenciamentoPedidos({ usuario }: GerenciamentoPedidosProps) {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {pedidosFiltrados.map((pedido) => (
+                {pedidos.map((pedido) => (
                   <TableRow key={pedido.id} className="bg-white hover:bg-gray-50">
                     <TableCell className="font-mono text-sm">
                       #{pedido.id.slice(-8).toUpperCase()}
@@ -199,7 +168,7 @@ export function GerenciamentoPedidos({ usuario }: GerenciamentoPedidosProps) {
                       </span>
                     </TableCell>
                     <TableCell>
-                      {getStatusBadge(pedido.status)}
+                      <StatusBadge status={pedido.status} />
                     </TableCell>
                     <TableCell className="font-semibold text-purple-600">
                       {formatarMoeda(pedido.valor_total)}
@@ -221,7 +190,7 @@ export function GerenciamentoPedidos({ usuario }: GerenciamentoPedidosProps) {
                     </TableCell>
                   </TableRow>
                 ))}
-                {pedidosFiltrados.length === 0 && (
+                {pedidos.length === 0 && (
                   <TableRow>
                     <TableCell colSpan={7} className="text-center py-8 text-gray-500">
                       Nenhum pedido encontrado

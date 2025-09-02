@@ -4,15 +4,20 @@ import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
+import { useAuth } from '@/contexts/auth-context'
 import { supabase } from '@/lib/supabase'
-import { Usuario, Estampa } from '@/lib/types'
+import { Estampa } from '@/lib/types'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { Label } from '@/components/ui/label'
-import { Badge } from '@/components/ui/badge'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
-import { X, Plus, Loader2, Save, Upload } from 'lucide-react'
+import { FormImageUpload } from './form-image-upload'
+import { FormTagsInput } from './form-tags-input'
+import { FormColorPaletteInput } from './form-color-palette-input'
+import { useTags } from '@/hooks/use-tags'
+import { useColorPalette } from '@/hooks/use-color-palette'
+import { useImageUpload } from '@/hooks/use-image-upload'
+import { Loader2, Save } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 
 const estampaSchema = z.object({
@@ -23,20 +28,17 @@ const estampaSchema = z.object({
 
 interface FormularioEstampaProps {
   estampa?: Estampa | null
-  usuario: Usuario
   onSalvar: (estampa: Estampa) => void
   onCancelar: () => void
 }
 
-export function FormularioEstampa({ estampa, usuario, onSalvar, onCancelar }: FormularioEstampaProps) {
-  const [tags, setTags] = useState<string[]>(estampa?.tags || [])
-  const [novaTag, setNovaTag] = useState('')
-  const [cores, setCores] = useState(estampa?.paleta_cores || {})
-  const [novaCor, setNovaCor] = useState({ nome: '', valor: '#000000' })
-  const [arquivoImagem, setArquivoImagem] = useState<File | null>(null)
-  const [previewUrl, setPreviewUrl] = useState<string | null>(estampa?.imagem_url || null)
+export function FormularioEstampa({ estampa, onSalvar, onCancelar }: FormularioEstampaProps) {
+  const { usuario } = useAuth()
   const [loading, setLoading] = useState(false)
   const { toast } = useToast()
+  const { tags, novaTag, setNovaTag, adicionarTag, removerTag } = useTags(estampa?.tags)
+  const { cores, novaCor, setNovaCor, adicionarCor, removerCor } = useColorPalette(estampa?.paleta_cores)
+  const { arquivoImagem, previewUrl, handleSelecaoImagem } = useImageUpload(estampa?.imagem_url)
 
   const form = useForm<z.infer<typeof estampaSchema>>({
     resolver: zodResolver(estampaSchema),
@@ -47,37 +49,7 @@ export function FormularioEstampa({ estampa, usuario, onSalvar, onCancelar }: Fo
     },
   })
 
-  const adicionarTag = () => {
-    if (novaTag && !tags.includes(novaTag)) {
-      setTags([...tags, novaTag])
-      setNovaTag('')
-    }
-  }
-
-  const removerTag = (tagRemover: string) => {
-    setTags(tags.filter(tag => tag !== tagRemover))
-  }
-
-  const adicionarCor = () => {
-    if (novaCor.nome && novaCor.valor) {
-      setCores({ ...cores, [novaCor.nome]: novaCor.valor })
-      setNovaCor({ nome: '', valor: '#000000' })
-    }
-  }
-
-  const removerCor = (nomeRemover: string) => {
-    const novasCores = { ...cores }
-    delete novasCores[nomeRemover]
-    setCores(novasCores)
-  }
-
-  const handleSelecaoImagem = (event: React.ChangeEvent<HTMLInputElement>) => {
-    if (event.target.files && event.target.files[0]) {
-      const file = event.target.files[0]
-      setArquivoImagem(file)
-      setPreviewUrl(URL.createObjectURL(file))
-    }
-  }
+  if (!usuario) return null
 
   const onSubmit = async (values: z.infer<typeof estampaSchema>) => {
     setLoading(true)
@@ -131,6 +103,11 @@ export function FormularioEstampa({ estampa, usuario, onSalvar, onCancelar }: Fo
           .single()
 
         if (error) throw error
+
+        // --- VERIFICAÇÃO CRUCIAL ---
+        if (!data) {
+          throw new Error('A atualização falhou silenciosamente. Verifique as permissões (RLS) e os logs da API no painel do Supabase.')
+        }
 
         // 4. Se a atualização do banco foi bem-sucedida e uma nova imagem foi enviada,
         //    deleta a imagem antiga do Storage para não deixar arquivos órfãos.
@@ -192,33 +169,10 @@ export function FormularioEstampa({ estampa, usuario, onSalvar, onCancelar }: Fo
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-        {/* Campo de Upload de Imagem */}
-        <FormItem>
-          <FormLabel>Imagem da Estampa</FormLabel>
-          <FormControl>
-            <div className="flex items-center gap-4">
-              {previewUrl && (
-                <img src={previewUrl} alt="Preview" className="w-24 h-24 object-cover rounded-lg border" />
-              )}
-              <Label htmlFor="picture" className="flex-1 flex flex-col items-center justify-center w-full h-24 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100">
-                <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                  <Upload className="w-8 h-8 mb-2 text-gray-500" />
-                  <p className="mb-2 text-sm text-gray-500"><span className="font-semibold">Clique para enviar</span> ou arraste</p>
-                  <p className="text-xs text-gray-500">PNG, JPG ou WEBP</p>
-                </div>
-                <Input 
-                  id="picture" 
-                  type="file" 
-                  className="hidden" 
-                  accept="image/png, image/jpeg, image/webp"
-                  onChange={handleSelecaoImagem}
-                />
-              </Label>
-            </div>
-          </FormControl>
-          <FormMessage />
-        </FormItem>
-
+        <FormImageUpload
+          previewUrl={previewUrl}
+          handleSelecaoImagem={handleSelecaoImagem}
+        />
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <FormField
@@ -268,82 +222,21 @@ export function FormularioEstampa({ estampa, usuario, onSalvar, onCancelar }: Fo
           )}
         />
 
-        {/* Tags */}
-        <div>
-          <Label>Tags</Label>
-          <div className="space-y-2 mt-2">
-            <div className="flex gap-2">
-              <Input
-                placeholder="Adicionar tag"
-                value={novaTag}
-                onChange={(e) => setNovaTag(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), adicionarTag())}
-              />
-              <Button type="button" onClick={adicionarTag} variant="outline">
-                <Plus className="h-4 w-4" />
-              </Button>
-            </div>
-            {tags.length > 0 && (
-              <div className="flex flex-wrap gap-2">
-                {tags.map((tag) => (
-                  <Badge key={tag} variant="secondary" className="flex items-center gap-1">
-                    {tag}
-                    <button
-                      type="button"
-                      onClick={() => removerTag(tag)}
-                      className="text-gray-500 hover:text-gray-700"
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </Badge>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
+        <FormTagsInput
+          tags={tags}
+          novaTag={novaTag}
+          setNovaTag={setNovaTag}
+          adicionarTag={adicionarTag}
+          removerTag={removerTag}
+        />
 
-        {/* Paleta de cores */}
-        <div>
-          <Label>Paleta de Cores</Label>
-          <div className="space-y-2 mt-2">
-            <div className="flex gap-2">
-              <Input
-                placeholder="Nome da cor"
-                value={novaCor.nome}
-                onChange={(e) => setNovaCor({ ...novaCor, nome: e.target.value })}
-              />
-              <Input
-                type="color"
-                value={novaCor.valor}
-                onChange={(e) => setNovaCor({ ...novaCor, valor: e.target.value })}
-                className="w-20"
-              />
-              <Button type="button" onClick={adicionarCor} variant="outline">
-                <Plus className="h-4 w-4" />
-              </Button>
-            </div>
-            {Object.keys(cores).length > 0 && (
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                {Object.entries(cores).map(([nome, valor]) => (
-                  <div key={nome} className="flex items-center gap-2 p-2 border rounded-lg">
-                    <div
-                      className="w-6 h-6 rounded-full border border-gray-200"
-                      style={{ backgroundColor: valor }}
-                    />
-                    <span className="text-sm flex-1 capitalize">{nome}</span>
-                    <button
-                      type="button"
-                      onClick={() => removerCor(nome)}
-                      className="text-gray-400 hover:text-gray-600"
-                    >
-                      <X className="h-4 w-4" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
+        <FormColorPaletteInput
+          cores={cores}
+          novaCor={novaCor}
+          setNovaCor={setNovaCor}
+          adicionarCor={adicionarCor}
+          removerCor={removerCor}
+        />
 
         <div className="flex gap-3 pt-4">
           <Button

@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { supabase } from '@/lib/supabase'
-import { Usuario } from '@/lib/types'
+import { useAuth } from '@/contexts/auth-context'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -11,15 +11,13 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
 import { User, Save, Loader2 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 
-interface PerfilPaginaProps {
-  usuario: Usuario
-  setUsuario: (usuario: Usuario) => void
-}
-
-export function PerfilPagina({ usuario, setUsuario }: PerfilPaginaProps) {
-  const [nomeCompleto, setNomeCompleto] = useState(usuario.nome_completo)
+export function PerfilPagina() {
+  const { usuario, updateUsuario } = useAuth()
+  const [nomeCompleto, setNomeCompleto] = useState(usuario?.nome_completo || '')
   const [loading, setSalvando] = useState(false)
   const { toast } = useToast()
+
+  if (!usuario) return null
 
   const salvarPerfil = async () => {
     setSalvando(true)
@@ -34,7 +32,7 @@ export function PerfilPagina({ usuario, setUsuario }: PerfilPaginaProps) {
 
       if (error) throw error
 
-      setUsuario(data)
+      updateUsuario(data)
       toast({
         title: 'Perfil atualizado',
         description: 'Suas informações foram salvas com sucesso.',
@@ -122,7 +120,7 @@ export function PerfilPagina({ usuario, setUsuario }: PerfilPaginaProps) {
               <div className="pt-4">
                 <Button
                   onClick={salvarPerfil}
-                  disabled={loading || nomeCompleto === usuario.nome_completo}
+                  disabled={loading || !nomeCompleto || nomeCompleto === usuario.nome_completo}
                   className="bg-purple-600 hover:bg-purple-700"
                 >
                   {loading ? (

@@ -1,42 +1,36 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useAuth } from '@/contexts/auth-context'
 import { supabase } from '@/lib/supabase'
-import { Usuario, Pedido } from '@/lib/types'
+import { Pedido } from '@/lib/types'
 import { PedidoCard } from './pedido-card'
 import { PedidoDetalhe } from './pedido-detalhe'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import { Loader2, Package, Filter } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
-import { format } from 'date-fns'
-import { ptBR } from 'date-fns/locale'
-
-interface PedidosPaginaProps {
-  usuario: Usuario
-}
 
 type StatusFiltro = 'todos' | 'processando' | 'concluido' | 'cancelado'
 
-export function PedidosPagina({ usuario }: PedidosPaginaProps) {
+export function PedidosPagina() {
+  const { usuario } = useAuth()
   const [pedidos, setPedidos] = useState<Pedido[]>([])
-  const [pedidosFiltrados, setPedidosFiltrados] = useState<Pedido[]>([])
   const [pedidoSelecionado, setPedidoSelecionado] = useState<Pedido | null>(null)
   const [loading, setLoading] = useState(true)
   const [statusFiltro, setStatusFiltro] = useState<StatusFiltro>('todos')
   const { toast } = useToast()
 
   useEffect(() => {
-    carregarPedidos()
-  }, [usuario.id])
-
-  useEffect(() => {
-    aplicarFiltro()
-  }, [pedidos, statusFiltro])
+    if (usuario?.id) {
+      carregarPedidos()
+    }
+  }, [usuario?.id, statusFiltro])
 
   const carregarPedidos = async () => {
+    if (!usuario) return
+    setLoading(true)
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('pedidos')
         .select(`
           *,
@@ -47,6 +41,12 @@ export function PedidosPagina({ usuario }: PedidosPaginaProps) {
         `)
         .eq('usuario_id', usuario.id)
         .order('data_pedido', { ascending: false })
+
+      if (statusFiltro !== 'todos') {
+        query = query.eq('status', statusFiltro)
+      }
+
+      const { data, error } = await query
 
       if (error) throw error
       setPedidos(data || [])
@@ -61,26 +61,7 @@ export function PedidosPagina({ usuario }: PedidosPaginaProps) {
     }
   }
 
-  const aplicarFiltro = () => {
-    if (statusFiltro === 'todos') {
-      setPedidosFiltrados(pedidos)
-    } else {
-      setPedidosFiltrados(pedidos.filter(pedido => pedido.status === statusFiltro))
-    }
-  }
-
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'processando':
-        return <Badge className="bg-yellow-100 text-yellow-800 hover:bg-yellow-100">Processando</Badge>
-      case 'concluido':
-        return <Badge className="bg-green-100 text-green-800 hover:bg-green-100">Concluído</Badge>
-      case 'cancelado':
-        return <Badge className="bg-red-100 text-red-800 hover:bg-red-100">Cancelado</Badge>
-      default:
-        return <Badge variant="secondary">{status}</Badge>
-    }
-  }
+  if (!usuario) return null
 
   if (loading) {
     return (
@@ -94,7 +75,6 @@ export function PedidosPagina({ usuario }: PedidosPaginaProps) {
     return (
       <PedidoDetalhe
         pedido={pedidoSelecionado}
-        usuario={usuario}
         onVoltar={() => setPedidoSelecionado(null)}
       />
     )
@@ -109,7 +89,7 @@ export function PedidosPagina({ usuario }: PedidosPaginaProps) {
             <div>
               <h1 className="text-2xl font-bold text-gray-800">Meus Pedidos</h1>
               <p className="text-gray-600">
-                {pedidosFiltrados.length} pedido{pedidosFiltrados.length !== 1 ? 's' : ''}
+                {pedidos.length} pedido{pedidos.length !== 1 ? 's' : ''}
               </p>
             </div>
           </div>
@@ -141,7 +121,7 @@ export function PedidosPagina({ usuario }: PedidosPaginaProps) {
         </div>
       </div>
 
-      {pedidosFiltrados.length === 0 ? (
+      {pedidos.length === 0 && !loading ? (
         <div className="text-center py-12">
           <div className="w-16 h-16 bg-purple-50 rounded-full flex items-center justify-center mx-auto mb-4">
             <Package className="h-8 w-8 text-purple-400" />
@@ -158,7 +138,7 @@ export function PedidosPagina({ usuario }: PedidosPaginaProps) {
         </div>
       ) : (
         <div className="space-y-4">
-          {pedidosFiltrados.map((pedido) => (
+          {pedidos.map((pedido) => (
             <PedidoCard
               key={pedido.id}
               pedido={pedido}

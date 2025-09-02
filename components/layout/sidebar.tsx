@@ -1,6 +1,6 @@
 'use client'
 
-import { Usuario } from '@/lib/types'
+import { useAuth } from '@/contexts/auth-context'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet'
 import { Badge } from '@/components/ui/badge'
@@ -15,7 +15,6 @@ import {
 import { cn } from '@/lib/utils'
 
 interface SidebarProps {
-  usuario: Usuario
   aberta: boolean
   onClose: () => void
   paginaAtual: string
@@ -30,7 +29,10 @@ const menuItems = [
   { id: 'perfil', label: 'Perfil', icon: User },
 ]
 
-export function Sidebar({ usuario, aberta, onClose, paginaAtual, onNavigate }: SidebarProps) {
+export function Sidebar({ aberta, onClose, paginaAtual, onNavigate }: SidebarProps) {
+  const { usuario } = useAuth()
+  if (!usuario) return null
+
   const SidebarContent = () => (
     <div className="flex flex-col h-full">
       <div className="flex items-center justify-between p-4 border-b border-purple-100">

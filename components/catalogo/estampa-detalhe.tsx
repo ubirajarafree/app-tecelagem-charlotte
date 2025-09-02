@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useAuth } from '@/contexts/auth-context'
 import { supabase } from '@/lib/supabase'
 import { Usuario, Estampa, Comentario } from '@/lib/types'
 import { Button } from '@/components/ui/button'
@@ -16,11 +17,11 @@ import { cn } from '@/lib/utils'
 
 interface EstampaDetalheProps {
   estampa: Estampa
-  usuario: Usuario
   onVoltar: () => void
 }
 
-export function EstampaDetalhe({ estampa, usuario, onVoltar }: EstampaDetalheProps) {
+export function EstampaDetalhe({ estampa, onVoltar }: EstampaDetalheProps) {
+  const { usuario } = useAuth()
   const [favorita, setFavorita] = useState(false)
   const [comentarios, setComentarios] = useState<Comentario[]>([])
   const [novoComentario, setNovoComentario] = useState('')
@@ -30,11 +31,16 @@ export function EstampaDetalhe({ estampa, usuario, onVoltar }: EstampaDetalhePro
   const { toast } = useToast()
 
   useEffect(() => {
-    verificarFavorito()
+    // A lógica de verificação do usuário vai para DENTRO do hook
+    if (usuario) {
+      verificarFavorito()
+    }
+    // Os comentários podem ser carregados independentemente do usuário
     carregarComentarios()
-  }, [])
+  }, [estampa.id, usuario]) // Roda o efeito se a estampa ou o usuário mudarem
 
   const verificarFavorito = async () => {
+    if (!usuario) return // Adiciona uma guarda extra para segurança
     try {
       const { data } = await supabase
         .from('favoritos')
@@ -75,6 +81,7 @@ export function EstampaDetalhe({ estampa, usuario, onVoltar }: EstampaDetalhePro
 
   const toggleFavorito = async () => {
     setLoadingFavorito(true)
+    if (!usuario) return
 
     try {
       if (favorita) {
@@ -116,6 +123,7 @@ export function EstampaDetalhe({ estampa, usuario, onVoltar }: EstampaDetalhePro
 
   const adicionarComentario = async () => {
     if (!novoComentario.trim()) return
+    if (!usuario) return
 
     setLoadingComentario(true)
 
@@ -152,6 +160,9 @@ export function EstampaDetalhe({ estampa, usuario, onVoltar }: EstampaDetalhePro
       setLoadingComentario(false)
     }
   }
+
+  // O retorno condicional é movido para DEPOIS de todos os hooks
+  if (!usuario) return null
 
   return (
     <div className="space-y-6">

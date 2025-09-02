@@ -1,8 +1,9 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useAuth } from '@/contexts/auth-context'
 import { supabase } from '@/lib/supabase'
-import { Usuario, Estampa } from '@/lib/types'
+import { Estampa } from '@/lib/types'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -13,41 +14,33 @@ import { FormularioEstampa } from './formulario-estampa'
 import { Loader2, Search, Plus, Edit, Trash2, Image } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 
-interface GerenciamentoEstampasProps {
-  usuario: Usuario
-}
-
-export function GerenciamentoEstampas({ usuario }: GerenciamentoEstampasProps) {
+export function GerenciamentoEstampas() {
   const [estampas, setEstampas] = useState<Estampa[]>([])
-  const [estampasFiltradas, setEstampasFiltradas] = useState<Estampa[]>([])
   const [estampaEditando, setEstampaEditando] = useState<Estampa | null>(null)
   const [busca, setBusca] = useState('')
   const [loading, setLoading] = useState(true)
   const [dialogAberto, setDialogAberto] = useState(false)
+  const { usuario } = useAuth()
   const { toast } = useToast()
 
   useEffect(() => {
     carregarEstampas()
-  }, [])
-
-  useEffect(() => {
-    if (busca) {
-      const filtradas = estampas.filter(estampa =>
-        estampa.nome.toLowerCase().includes(busca.toLowerCase()) ||
-        estampa.codigo.toLowerCase().includes(busca.toLowerCase())
-      )
-      setEstampasFiltradas(filtradas)
-    } else {
-      setEstampasFiltradas(estampas)
-    }
-  }, [estampas, busca])
+  }, [busca]) // Recarrega os dados quando a busca muda
 
   const carregarEstampas = async () => {
+    setLoading(true)
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('estampas')
         .select('*')
         .order('created_at', { ascending: false })
+
+      if (busca) {
+        // Filtra no banco de dados pelo nome OU pelo código da estampa
+        query = query.or(`nome.ilike.%${busca}%,codigo.ilike.%${busca}%`)
+      }
+
+      const { data, error } = await query
 
       if (error) throw error
       setEstampas(data || [])
@@ -146,7 +139,6 @@ export function GerenciamentoEstampas({ usuario }: GerenciamentoEstampasProps) {
                 </DialogHeader>
                 <FormularioEstampa
                   estampa={estampaEditando}
-                  usuario={usuario}
                   onSalvar={handleEstampaSalva}
                   onCancelar={() => {
                     setDialogAberto(false)
@@ -180,7 +172,7 @@ export function GerenciamentoEstampas({ usuario }: GerenciamentoEstampasProps) {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {estampasFiltradas.map((estampa) => (
+                {estampas.map((estampa) => (
                   <TableRow key={estampa.id} className="bg-white hover:bg-gray-50">
                     <TableCell>
                       <div className="w-12 h-12 bg-gray-100 rounded-lg overflow-hidden">
@@ -232,7 +224,7 @@ export function GerenciamentoEstampas({ usuario }: GerenciamentoEstampasProps) {
                     </TableCell>
                   </TableRow>
                 ))}
-                {estampasFiltradas.length === 0 && (
+                {estampas.length === 0 && (
                   <TableRow>
                     <TableCell colSpan={5} className="text-center py-8 text-gray-500">
                       Nenhuma estampa encontrada

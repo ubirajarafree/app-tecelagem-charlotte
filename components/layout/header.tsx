@@ -2,18 +2,20 @@
 
 import { useState } from 'react'
 import { supabase } from '@/lib/supabase'
-import { Usuario } from '@/lib/types'
+import { useAuth } from '@/contexts/auth-context'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Menu, Scissors, User, LogOut } from 'lucide-react'
 
 interface HeaderProps {
-  usuario: Usuario
   onToggleSidebar: () => void
 }
 
-export function Header({ usuario, onToggleSidebar }: HeaderProps) {
+export function Header({ onToggleSidebar }: HeaderProps) {
+  const { usuario } = useAuth()
+  if (!usuario) return null
+
   const handleLogout = async () => {
     await supabase.auth.signOut()
   }
@@ -33,7 +35,7 @@ export function Header({ usuario, onToggleSidebar }: HeaderProps) {
             variant="ghost" 
             size="sm" 
             onClick={onToggleSidebar}
-            className="lg:hidden text-purple-600 hover:bg-purple-50"
+            className="text-purple-600 hover:bg-purple-50"
           >
             <Menu className="h-5 w-5" />
           </Button>

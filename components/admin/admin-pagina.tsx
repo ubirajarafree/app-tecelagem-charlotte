@@ -1,19 +1,14 @@
 'use client'
 
 import { useState } from 'react'
-import { Usuario } from '@/lib/types'
 import { GerenciamentoEstampas } from './gerenciamento-estampas'
 import { GerenciamentoPedidos } from './gerenciamento-pedidos'
 import { Button } from '@/components/ui/button'
 import { Settings, Image, Package } from 'lucide-react'
 
-interface AdminPaginaProps {
-  usuario: Usuario
-}
-
 type AbaAdmin = 'estampas' | 'pedidos'
 
-export function AdminPagina({ usuario }: AdminPaginaProps) {
+export function AdminPagina() {
   const [abaAtiva, setAbaAtiva] = useState<AbaAdmin>('estampas')
 
   return (
@@ -53,8 +48,8 @@ export function AdminPagina({ usuario }: AdminPaginaProps) {
         </div>
       </div>
 
-      {abaAtiva === 'estampas' && <GerenciamentoEstampas usuario={usuario} />}
-      {abaAtiva === 'pedidos' && <GerenciamentoPedidos usuario={usuario} />}
+      {abaAtiva === 'estampas' && <GerenciamentoEstampas />}
+      {abaAtiva === 'pedidos' && <GerenciamentoPedidos />}
     </div>
   )
 }

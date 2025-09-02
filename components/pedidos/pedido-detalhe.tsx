@@ -1,44 +1,29 @@
 'use client'
 
-import { Pedido, Usuario } from '@/lib/types'
+import { useAuth } from '@/contexts/auth-context'
+import { Pedido } from '@/lib/types'
+import { formatarMoeda } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
 import { ArrowLeft, Calendar, Package, MapPin, CreditCard } from 'lucide-react'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
+import { StatusBadge } from './status-badge'
 
 interface PedidoDetalheProps {
   pedido: Pedido
-  usuario: Usuario
   onVoltar: () => void
 }
 
-export function PedidoDetalhe({ pedido, usuario, onVoltar }: PedidoDetalheProps) {
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'processando':
-        return <Badge className="bg-yellow-100 text-yellow-800 hover:bg-yellow-100">Processando</Badge>
-      case 'concluido':
-        return <Badge className="bg-green-100 text-green-800 hover:bg-green-100">Concluído</Badge>
-      case 'cancelado':
-        return <Badge className="bg-red-100 text-red-800 hover:bg-red-100">Cancelado</Badge>
-      default:
-        return <Badge variant="secondary">{status}</Badge>
-    }
-  }
-
-  const formatarMoeda = (valor: number) => {
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL'
-    }).format(valor)
-  }
+export function PedidoDetalhe({ pedido, onVoltar }: PedidoDetalheProps) {
+  const { usuario } = useAuth()
 
   const calcularSubtotal = () => {
     return pedido.itens?.reduce((total, item) => total + (item.quantidade * item.preco_unitario), 0) || 0
   }
+
+  if (!usuario) return null
 
   return (
     <div className="space-y-6">
@@ -61,7 +46,7 @@ export function PedidoDetalhe({ pedido, usuario, onVoltar }: PedidoDetalheProps)
                   <Package className="h-5 w-5 text-purple-600" />
                   Pedido #{pedido.id.slice(-8).toUpperCase()}
                 </CardTitle>
-                {getStatusBadge(pedido.status)}
+                <StatusBadge status={pedido.status} />
               </div>
               <div className="flex items-center gap-2 text-sm text-gray-600">
                 <Calendar className="h-4 w-4" />
