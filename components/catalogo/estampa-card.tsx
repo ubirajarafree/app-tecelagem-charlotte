@@ -31,10 +31,11 @@ export function EstampaCard({ estampa, onClick }: EstampaCardProps) {
     try {
       const { data } = await supabase
         .from('favoritos')
-        .select('*')
+        .select('usuario_id, estampa_id, created_at')
         .eq('usuario_id', usuario?.id)
         .eq('estampa_id', estampa.id)
-        .single()
+        .limit(1) // Garante que no máximo 1 linha será retornada
+        .maybeSingle() // Pega essa única linha (ou null se não houver nenhuma)
 
       setFavorita(!!data)
     } catch (error) {
