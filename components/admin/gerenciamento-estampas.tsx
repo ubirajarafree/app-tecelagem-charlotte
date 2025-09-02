@@ -11,6 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Badge } from '@/components/ui/badge'
 import { FormularioEstampa } from './formulario-estampa'
+import { ToastAction } from '@/components/ui/toast'
 import { Loader2, Search, Plus, Edit, Trash2, Image } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 
@@ -55,9 +56,8 @@ export function GerenciamentoEstampas() {
     }
   }
 
-  const excluirEstampa = async (estampaParaExcluir: Estampa) => {
-    if (!confirm('Tem certeza que deseja excluir esta estampa?')) return
-
+  // 2. Esta função contém a lógica de exclusão e será chamada pela ação do toast.
+  const executarExclusao = async (estampaParaExcluir: Estampa) => {
     try {
       // 1. Deleta a imagem do Storage primeiro
       if (estampaParaExcluir.imagem_url) {
@@ -89,6 +89,22 @@ export function GerenciamentoEstampas() {
         variant: 'destructive',
       })
     }
+  }
+
+  // 1. Esta função é chamada pelo botão e exibe o toast de confirmação.
+  const handleExcluirClick = (estampaParaExcluir: Estampa) => {
+    toast({
+      title: 'Confirmar exclusão',
+      description: `Tem certeza que deseja excluir a estampa "${estampaParaExcluir.nome}"? Esta ação não pode ser desfeita.`,
+      variant: 'destructive',
+      action: (
+        <ToastAction
+          altText="Confirmar Exclusão"
+          onClick={() => executarExclusao(estampaParaExcluir)}>
+          Confirmar
+        </ToastAction>
+      ),
+    })
   }
 
   const handleEstampaSalva = (estampa: Estampa) => {
@@ -215,7 +231,7 @@ export function GerenciamentoEstampas() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => excluirEstampa(estampa)}
+                          onClick={() => handleExcluirClick(estampa)}
                           className="text-red-600 hover:text-red-700 hover:bg-red-50"
                         >
                           <Trash2 className="h-4 w-4" />
