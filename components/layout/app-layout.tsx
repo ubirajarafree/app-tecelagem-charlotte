@@ -59,7 +59,7 @@ export function AppLayout() {
         onNavigate={handleNavigate}
       />
       
-      <main className="pt-16">
+      <main className="pt-16 lg:pt-20">
         <div className="p-6">
           {renderPagina()}
         </div>
