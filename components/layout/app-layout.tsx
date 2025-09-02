@@ -20,6 +20,11 @@ export function AppLayout() {
 
   if (!usuario) return null
 
+  const handleNavigate = (pagina: PaginaAtual) => {
+    setPaginaAtual(pagina)
+    setSidebarAberta(false) // Fecha o sidebar ao navegar em mobile
+  }
+
   const renderPagina = () => {
     switch (paginaAtual) {
       case 'catalogo':
@@ -42,20 +47,19 @@ export function AppLayout() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-orange-50">
       <Header 
-        onToggleSidebar={() => setSidebarAberta(!sidebarAberta)} 
+        onToggleSidebar={() => setSidebarAberta(!sidebarAberta)}
+        paginaAtual={paginaAtual}
+        onNavigate={handleNavigate}
       />
       
       <Sidebar 
         aberta={sidebarAberta}
         onClose={() => setSidebarAberta(false)}
         paginaAtual={paginaAtual}
-        onNavigate={(pagina) => {
-          setPaginaAtual(pagina)
-          setSidebarAberta(false)
-        }}
+        onNavigate={handleNavigate}
       />
       
-      <main className={`transition-all duration-300 pt-16 ${sidebarAberta ? 'lg:ml-64' : 'ml-0'}`}>
+      <main className="pt-16">
         <div className="p-6">
           {renderPagina()}
         </div>

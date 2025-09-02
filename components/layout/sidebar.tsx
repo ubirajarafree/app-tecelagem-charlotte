@@ -92,24 +92,12 @@ export function Sidebar({ aberta, onClose, paginaAtual, onNavigate }: SidebarPro
   )
 
   return (
-    <>
-      {/* Desktop Sidebar */}
-      <aside className={cn(
-        'fixed left-0 top-16 h-[calc(100vh-4rem)] bg-white/80 backdrop-blur-md border-r border-purple-100 shadow-sm transition-transform duration-300 z-40',
-        'hidden lg:block w-64',
-        !aberta && 'lg:-translate-x-full'
-      )}>
+    // O Sidebar agora é apenas para mobile, usando o componente Sheet.
+    <Sheet open={aberta} onOpenChange={onClose}>
+      <SheetContent side="left" className="w-64 p-0 bg-white/95 backdrop-blur-md">
+        <SheetTitle className="sr-only">Menu</SheetTitle>
         <SidebarContent />
-      </aside>
-
-      {/* Mobile Sidebar */}
-      <Sheet open={aberta} onOpenChange={onClose}>
-        <SheetContent side="left" className="w-64 p-0 bg-white/95 backdrop-blur-md">
-          {/* Adiciona um título apenas para leitores de tela para cumprir os requisitos de acessibilidade */}
-          <SheetTitle className="sr-only">Menu</SheetTitle>
-          <SidebarContent />
-        </SheetContent>
-      </Sheet>
-    </>
+      </SheetContent>
+    </Sheet>
   )
 }

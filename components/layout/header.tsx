@@ -2,17 +2,29 @@
 
 import { useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import { cn } from '@/lib/utils'
 import { useAuth } from '@/contexts/auth-context'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
-import { Menu, Scissors, User, LogOut } from 'lucide-react'
+import { Menu, Scissors, User, LogOut, Grid3X3, Heart, Package, ShoppingCart, Settings } from 'lucide-react'
 
 interface HeaderProps {
   onToggleSidebar: () => void
+  paginaAtual: string
+  onNavigate: (pagina: 'catalogo' | 'favoritos' | 'pedidos' | 'carrinho' | 'perfil' | 'admin') => void
 }
 
-export function Header({ onToggleSidebar }: HeaderProps) {
+const menuItems = [
+  { id: 'catalogo', label: 'Catálogo', icon: Grid3X3 },
+  { id: 'favoritos', label: 'Favoritos', icon: Heart },
+  { id: 'pedidos', label: 'Pedidos', icon: Package },
+  { id: 'carrinho', label: 'Carrinho', icon: ShoppingCart },
+]
+
+const adminItem = { id: 'admin', label: 'Admin', icon: Settings }
+
+export function Header({ onToggleSidebar, paginaAtual, onNavigate }: HeaderProps) {
   const { usuario } = useAuth()
   if (!usuario) return null
 
@@ -29,13 +41,13 @@ export function Header({ onToggleSidebar }: HeaderProps) {
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-md border-b border-purple-100 shadow-sm">
-      <div className="flex items-center justify-between px-6 py-3">
+      <div className="flex items-center justify-between px-6 py-3 lg:py-5">
         <div className="flex items-center space-x-4">
           <Button 
             variant="ghost" 
             size="sm" 
             onClick={onToggleSidebar}
-            className="text-purple-600 hover:bg-purple-50"
+            className="text-purple-600 hover:bg-purple-50 lg:hidden" // Esconde em telas grandes
           >
             <Menu className="h-5 w-5" />
           </Button>
@@ -49,6 +61,26 @@ export function Header({ onToggleSidebar }: HeaderProps) {
             </h1>
           </div>
         </div>
+
+        {/* Menu de Navegação para Desktop */}
+        <nav className="hidden lg:flex items-center space-x-2">
+          {menuItems.map((item) => {
+            const isActive = paginaAtual === item.id
+            return (
+              <Button
+                key={item.id}
+                variant="ghost"
+                onClick={() => onNavigate(item.id as any)}
+                className={cn(
+                  'text-sm font-medium',
+                  isActive ? 'text-purple-700' : 'text-gray-600 hover:text-purple-700'
+                )}
+              >
+                {item.label}
+              </Button>
+            )
+          })}
+        </nav>
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -71,10 +103,16 @@ export function Header({ onToggleSidebar }: HeaderProps) {
               </div>
             </div>
             <DropdownMenuSeparator />
-            <DropdownMenuItem className="cursor-pointer">
+            <DropdownMenuItem onClick={() => onNavigate('perfil')} className="cursor-pointer">
               <User className="mr-2 h-4 w-4" />
               Perfil
             </DropdownMenuItem>
+            {usuario.role === 'admin' && (
+              <DropdownMenuItem onClick={() => onNavigate('admin')} className="cursor-pointer">
+                <Settings className="mr-2 h-4 w-4" />
+                Administração
+              </DropdownMenuItem>
+            )}
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={handleLogout} className="cursor-pointer text-red-600">
               <LogOut className="mr-2 h-4 w-4" />
