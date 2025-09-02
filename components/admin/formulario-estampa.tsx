@@ -82,11 +82,15 @@ export function FormularioEstampa({ estampa, usuario, onSalvar, onCancelar }: Fo
   const onSubmit = async (values: z.infer<typeof estampaSchema>) => {
     setLoading(true)
     let imageUrl = estampa?.imagem_url || ''
+    const oldImageUrl = estampa?.imagem_url // Guarda a URL antiga para possível exclusão
 
     try {
       // 1. Faz o upload da nova imagem, se uma foi selecionada
       if (arquivoImagem) {
-        const nomeArquivo = `${usuario.id}-${Date.now()}`
+        // Extrai a extensão do arquivo original (ex: .jpg, .png)
+        const extensao = arquivoImagem.name.split('.').pop()
+        // Cria um nome de arquivo único com a extensão correta
+        const nomeArquivo = `${usuario.id}-${Date.now()}.${extensao}`
         const { error: uploadError } = await supabase.storage
           .from('tecelagem2') // <-- Nome do seu bucket
           .upload(nomeArquivo, arquivoImagem)
@@ -127,6 +131,22 @@ export function FormularioEstampa({ estampa, usuario, onSalvar, onCancelar }: Fo
           .single()
 
         if (error) throw error
+
+        // 4. Se a atualização do banco foi bem-sucedida e uma nova imagem foi enviada,
+        //    deleta a imagem antiga do Storage para não deixar arquivos órfãos.
+        if (arquivoImagem && oldImageUrl) {
+          const nomeArquivoAntigo = oldImageUrl.split('/').pop()
+          if (nomeArquivoAntigo) {
+            // Executa a remoção em segundo plano. Se falhar, não impede o fluxo,
+            // apenas registra o erro no console.
+            supabase.storage.from('tecelagem2').remove([nomeArquivoAntigo]).then(({ error: removeError }) => {
+              if (removeError) {
+                console.error('Falha ao deletar imagem antiga do Storage:', removeError.message)
+              }
+            })
+          }
+        }
+
         onSalvar(data)
         toast({
           title: 'Estampa atualizada',
@@ -135,11 +155,23 @@ export function FormularioEstampa({ estampa, usuario, onSalvar, onCancelar }: Fo
       } else {
         const { data, error } = await supabase
           .from('estampas')
-          .insert([dadosEstampa] as any)
+          .insert([dadosEstampa])
           .select()
           .single()
 
+        // --- PASSO DE DEPURAÇÃO ---
+        // Loga a resposta exata do Supabase no console do navegador
+        console.log('Resultado da inserção no Supabase:', { data, error })
+
         if (error) throw error
+
+        // --- VERIFICAÇÃO CRUCIAL ---
+        // Se o erro for nulo mas nenhum dado for retornado, a RLS provavelmente bloqueou a ação.
+        // Isso tornará o erro "silencioso" em um erro "visível".
+        if (!data) {
+          throw new Error('A inserção falhou silenciosamente. Verifique as permissões (RLS) e os logs da API no painel do Supabase.')
+        }
+
         onSalvar(data)
         toast({
           title: 'Estampa criada',

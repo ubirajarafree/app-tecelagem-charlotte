@@ -62,18 +62,29 @@ export function GerenciamentoEstampas({ usuario }: GerenciamentoEstampasProps) {
     }
   }
 
-  const excluirEstampa = async (id: string) => {
+  const excluirEstampa = async (estampaParaExcluir: Estampa) => {
     if (!confirm('Tem certeza que deseja excluir esta estampa?')) return
 
     try {
+      // 1. Deleta a imagem do Storage primeiro
+      if (estampaParaExcluir.imagem_url) {
+        const nomeArquivo = estampaParaExcluir.imagem_url.split('/').pop()
+        if (nomeArquivo) {
+          await supabase.storage
+            .from('tecelagem2')
+            .remove([nomeArquivo])
+        }
+      }
+
+      // 2. Deleta o registro da estampa no banco de dados
       const { error } = await supabase
         .from('estampas')
         .delete()
-        .eq('id', id)
+        .eq('id', estampaParaExcluir.id)
 
       if (error) throw error
 
-      setEstampas(prev => prev.filter(e => e.id !== id))
+      setEstampas(prev => prev.filter(e => e.id !== estampaParaExcluir.id))
       toast({
         title: 'Estampa excluída',
         description: 'A estampa foi removida com sucesso.',
@@ -212,7 +223,7 @@ export function GerenciamentoEstampas({ usuario }: GerenciamentoEstampasProps) {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => excluirEstampa(estampa.id)}
+                          onClick={() => excluirEstampa(estampa)}
                           className="text-red-600 hover:text-red-700 hover:bg-red-50"
                         >
                           <Trash2 className="h-4 w-4" />

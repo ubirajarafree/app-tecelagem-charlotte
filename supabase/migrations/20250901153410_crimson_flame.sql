@@ -94,12 +94,14 @@ CREATE INDEX IF NOT EXISTS idx_comentarios_estampa ON comentarios(estampa_id);
 
 -- Triggers para updated_at
 CREATE OR REPLACE FUNCTION update_updated_at()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER 
+LANGUAGE plpgsql
+SECURITY DEFINER SET search_path = public
+AS $$
 BEGIN
   NEW.updated_at = now();
   RETURN NEW;
 END;
-$$ language 'plpgsql';
 
 DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'update_usuarios_ext_updated_at') THEN
