@@ -26,35 +26,52 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const fetchSessionAndProfile = async () => {
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession()
-      setSession(session)
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession()
+        if (error) throw error
+        setSession(session)
 
-      if (session?.user) {
-        const { data: profile } = await supabase
-          .from('usuarios_ext')
-          .select('*')
-          .eq('id', session.user.id)
-          .single()
-        setUsuario(profile)
+        if (session?.user) {
+          const { data: profile, error: profileError } = await supabase
+            .from('usuarios_ext')
+            .select('*')
+            .eq('id', session.user.id)
+            .single()
+          if (profileError) throw profileError
+          setUsuario(profile)
+        } else {
+          setUsuario(null)
+        }
+      } catch (err) {
+        console.error('Erro ao carregar sessão:', err)
+      } finally {
+        setLoading(false)
       }
-      setLoading(false)
     }
 
     fetchSessionAndProfile()
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
+      (_event, session) => {
         setSession(session)
-        if (session?.user) {
-          const { data: profile } = await supabase
-            .from('usuarios_ext')
-            .select('*')
-            .eq('id', session.user.id)
-            .single()
-          setUsuario(profile)
-        } else {
-          setUsuario(null)
-        }
+
+        setTimeout(async () => {
+          if (session?.user) {
+            const { data: profile, error } = await supabase
+              .from('usuarios_ext')
+              .select('*')
+              .eq('id', session.user.id)
+              .single()
+            if (error) {
+              console.error('Erro ao buscar perfil no evento:', error)
+              setUsuario(null)
+            } else {
+              setUsuario(profile)
+            }
+          } else {
+            setUsuario(null)
+          }
+        }, 0)
       }
     )
 
